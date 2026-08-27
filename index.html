@@ -230,18 +230,20 @@
 
   /* theme toggle */
   #themeToggle{
-    position:fixed;top:18px;right:18px;z-index:95;
-    width:46px;height:46px;border-radius:50%;
-    background:rgba(246,238,222,.85);
-    border:1px solid rgba(185,138,60,.55);
-    color:var(--gold);cursor:pointer;
-    display:flex;align-items:center;justify-content:center;
-    font-size:20px;line-height:1;font-family:Georgia,serif;
-    box-shadow:0 4px 14px rgba(65,41,31,.2);
+    position:fixed;top:16px;right:16px;z-index:95;
+    padding:11px 18px;border-radius:999px;
+    background:rgba(246,238,222,.9);
+    border:1px solid rgba(185,138,60,.6);
+    color:#7c5a22;cursor:pointer;
+    display:flex;align-items:center;gap:9px;
+    font-family:"Marcellus",serif;font-size:12px;letter-spacing:.22em;text-transform:uppercase;
+    box-shadow:0 4px 14px rgba(65,41,31,.22);
     transition:transform .2s ease;
     -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+    white-space:nowrap;
   }
-  #themeToggle:hover{transform:scale(1.08)}
+  #themeToggle .tt-icon{font-family:Georgia,serif;font-size:17px;line-height:1;color:var(--gold)}
+  #themeToggle:hover{transform:scale(1.05)}
 
   /* scratch */
   #scratchSec{background:linear-gradient(180deg, var(--pine) 0%, #2f3a2c 100%);color:var(--parchment)}
@@ -558,8 +560,10 @@ if (new URLSearchParams(location.search).get('debug')){
 const themeBtn = document.getElementById('themeToggle');
 function setTheme(t, save){
   document.body.classList.toggle('day', t === 'day');
-  themeBtn.textContent = t === 'day' ? '☾' : '☀';
-  themeBtn.title = t === 'day' ? 'See it by night' : 'See it by day';
+  themeBtn.innerHTML = t === 'day'
+    ? '<span class="tt-icon">☾</span> see it by night'
+    : '<span class="tt-icon">☀</span> see it by day';
+  themeBtn.title = t === 'day' ? 'See the venue by night' : 'See the venue by day';
   document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'day' ? '#f6eede' : '#16223c');
   if (save){ try{ localStorage.setItem('std-theme', t); } catch(e){} }
 }
