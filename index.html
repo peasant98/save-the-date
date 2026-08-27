@@ -238,10 +238,12 @@
     display:flex;align-items:center;gap:9px;
     font-family:"Marcellus",serif;font-size:12px;letter-spacing:.22em;text-transform:uppercase;
     box-shadow:0 4px 14px rgba(65,41,31,.22);
-    transition:transform .2s ease;
+    transition:transform .2s ease, opacity .6s ease .8s, visibility .6s .8s;
     -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
     white-space:nowrap;
+    opacity:0;visibility:hidden;pointer-events:none;
   }
+  body.opened #themeToggle{opacity:1;visibility:visible;pointer-events:auto}
   #themeToggle .tt-icon{font-family:Georgia,serif;font-size:17px;line-height:1;color:var(--gold)}
   #themeToggle:hover{transform:scale(1.05)}
 
