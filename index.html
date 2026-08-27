@@ -111,7 +111,7 @@
     border-radius:4px;
     box-shadow:0 8px 22px rgba(65,41,31,.25);
     display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
-    transition:transform 1.1s cubic-bezier(.22,.9,.3,1) .55s;
+    transition:transform 1.1s cubic-bezier(.22,.9,.3,1) .55s, top 1.1s cubic-bezier(.22,.9,.3,1) .55s, bottom 1.1s cubic-bezier(.22,.9,.3,1) .55s;
     z-index:1;
   }
   #card .card-caption{
@@ -120,7 +120,9 @@
     font-family:"Marcellus",serif;font-size:clamp(14px,2.4vw,17px);letter-spacing:.3em;
     color:var(--ink);text-transform:uppercase;text-align:center;
   }
-  #envelope.open #card{transform:translateY(-58%) scale(1.22)}
+  #envelope.open #card{top:-38%;bottom:-8%;transform:translateY(-26%) scale(1.05)}
+  #stage:has(#envelope.open) .intro,
+  #stage:has(#envelope.open) #tapHint{opacity:0;transition:opacity .5s ease}
 
   #flap{
     position:absolute;left:0;right:0;top:0;height:52%;
