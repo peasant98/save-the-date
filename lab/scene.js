@@ -274,6 +274,30 @@ function glow(ctx, x, y, r, color){
   ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
 }
 
+/* A slow scripted camera path. Lateral travel is what reveals parallax, so the
+   waypoints sweep hard left and right, with two dolly moves to vary it. Each
+   leg eases with smootherstep and then holds, so it reads as considered
+   camera work rather than drifting. */
+class Tour {
+  constructor(path, leg = 4600, hold = 1100){
+    this.path = path;
+    this.leg = leg;
+    this.span = leg + hold;
+    this.cycle = path.length * this.span;
+  }
+
+  sample(t){
+    const p = (t % this.cycle) / this.span;
+    const i = Math.floor(p);
+    const u = Math.min(1, (p - i) * this.span / this.leg);  /* 1 through the hold */
+    const a = this.path[i], b = this.path[(i + 1) % this.path.length];
+    const k = u * u * u * (u * (u * 6 - 15) + 10);
+    return { x: a[0] + (b[0] - a[0]) * k,
+             y: a[1] + (b[1] - a[1]) * k,
+             z: a[2] + (b[2] - a[2]) * k };
+  }
+}
+
 /* ------------------------------------------------------------------ diorama */
 
 export class Diorama {
@@ -286,12 +310,18 @@ export class Diorama {
       breathe: 0,            /* slow dolly in and out */
       wind: 0,               /* degrees of sway on the tree layers */
       fog: 0, swarm: 0, drifters: 0,
+      tour: null,            /* waypoints [x, y, dolly]; takes over from drift */
+      tourDolly: 0.022,
+      tourLeg: 4600, tourHold: 1100,
       captions: { night: '', day: '' },
     }, cfg);
 
     this.night = true;
     this.W = this.H = 0;
     this.cam = { x: 0, y: 0, tx: 0, ty: 0 };
+    this.tour = this.cfg.tour ? new Tour(this.cfg.tour, this.cfg.tourLeg, this.cfg.tourHold) : null;
+    this.hold = 0;         /* how much the viewer is steering, 0..1 */
+    this.holdUntil = 0;
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     this.build();
@@ -358,8 +388,14 @@ export class Diorama {
   }
 
   look(px, py){
-    this.cam.tx = Math.max(-1, Math.min(1, px));
-    this.cam.ty = Math.max(-1, Math.min(1, py));
+    const x = Math.max(-1, Math.min(1, px)), y = Math.max(-1, Math.min(1, py));
+    /* a phone lying still keeps firing deviceorientation, so only a real
+       change counts as the viewer taking the camera */
+    const moved = Math.abs(x - this.cam.tx) + Math.abs(y - this.cam.ty) > 0.012;
+    this.cam.tx = x;
+    this.cam.ty = y;
+    if (!moved) return;
+    this.holdUntil = performance.now() + 4500;
     this.root.dispatchEvent(new CustomEvent('diorama:look'));
   }
 
@@ -381,13 +417,29 @@ export class Diorama {
 
   camera(t){
     const c = this.cfg, cam = this.cam;
-    /* idle wander, so the scene breathes when nobody is touching it */
-    const dx = (Math.sin(t * 0.00019) * 0.42 + Math.sin(t * 0.00043) * 0.16) * c.drift;
-    const dy = Math.cos(t * 0.00025) * 0.30 * c.drift;
-    cam.x += ((cam.tx + dx) * 0.5 - cam.x) * 0.045;
-    cam.y += ((cam.ty + dy) * 0.5 - cam.y) * 0.045;
+    let tx, ty, tz = 0;
 
-    const dolly = c.breathe ? c.breathe * Math.sin(t * 0.00012) : 0;
+    if (this.tour){
+      /* hand the camera to the viewer while they are moving, then ease back
+         onto the path, which has kept running so it never jumps */
+      this.hold += ((performance.now() < this.holdUntil ? 1 : 0) - this.hold) * 0.02;
+      const s = this.tour.sample(t);
+      const w = this.hold;
+      tx = s.x * (1 - w) + cam.tx * w;
+      ty = s.y * (1 - w) + cam.ty * w;
+      tz = s.z * (1 - w);
+    } else {
+      /* idle wander, so the scene breathes when nobody is touching it */
+      const dx = (Math.sin(t * 0.00019) * 0.42 + Math.sin(t * 0.00043) * 0.16) * c.drift;
+      const dy = Math.cos(t * 0.00025) * 0.30 * c.drift;
+      tx = (cam.tx + dx) * 0.5;
+      ty = (cam.ty + dy) * 0.5;
+    }
+
+    cam.x += (tx - cam.x) * 0.045;
+    cam.y += (ty - cam.y) * 0.045;
+
+    const dolly = (c.breathe ? c.breathe * Math.sin(t * 0.00012) : 0) + tz * c.tourDolly;
     for (const node of this.stage.querySelectorAll('[data-depth]')){
       const d = +node.dataset.depth;
       const x = -cam.x * this.W * c.amp[0] * d;

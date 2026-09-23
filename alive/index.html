@@ -27,11 +27,21 @@ import { mount } from '/lab/page.js';
 
 /* everything on: wind through the canopy, mist off the lawn, fireflies and
    rising embers at night, dust and falling leaves by day, and a camera that
-   travels further and breathes in and out */
+   tours the scene on its own until you take it */
 mount({
   amp: [0.042, 0.027],
-  drift: 1.5,
-  breathe: 0.012,
+  hint: { pointer: 'move to take the camera', touch: 'drag to take the camera' },
+  /* [x, y, dolly] — hard left and right is where the parallax lives */
+  tour: [
+    [ 0.00,  0.00,  0.00],
+    [-0.95, -0.20,  0.25],
+    [-0.55,  0.55,  0.70],
+    [ 0.35,  0.25,  0.30],
+    [ 0.95, -0.15,  0.00],
+    [ 0.45, -0.55, -0.35],
+    [-0.20,  0.10, -0.15],
+  ],
+  tourDolly: 0.022,
   wind: 0.42,
   fog: 0.85,
   swarm: 85,

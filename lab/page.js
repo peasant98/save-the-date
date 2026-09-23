@@ -21,7 +21,9 @@ export function mount(cfg){
   });
 
   toggle.addEventListener('click', () => scene.setNight(!scene.night));
-  if (matchMedia('(hover: none)').matches) hint.textContent = 'drag to look around';
+  const touch = matchMedia('(hover: none)').matches;
+  if (cfg.hint) hint.textContent = cfg.hint[touch ? 'touch' : 'pointer'];
+  else if (touch) hint.textContent = 'drag to look around';
   scene.setNight(location.hash !== '#day');
   return scene;
 }
