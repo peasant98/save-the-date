@@ -16,7 +16,11 @@
 <div id="viewport"></div>
 <div id="vignette"></div>
 <div id="hint">move to look around</div>
-<button id="toggle">see it by day</button>
+<div id="timeline">
+  <span>night</span>
+  <input id="time" type="range" min="0" max="1" step="0.002" value="0" aria-label="Time of day">
+  <span>day</span>
+</div>
 <div id="caption">
   <div class="script">the woods, awake</div>
   <div class="sub">Anisha &amp; Matt &middot; August 5&ndash;7 &middot; 2027</div>
@@ -47,7 +51,7 @@ mount({
   fog: 0.85,
   swarm: 85,
   drifters: 26,
-  captions: { night: 'the woods, awake', day: 'the lawn, awake' },
+  captions: { night: 'the woods, awake', dusk: 'the light going', day: 'the lawn, awake' },
 });
 </script>
 </body>
