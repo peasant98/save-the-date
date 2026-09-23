@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Anisha &amp; Matt — the scene</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#16223c">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400&family=Pinyon+Script&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#41291f; --gold:#d9b25f; --night:#16223c; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#0d1526}
+  body{font-family:"Cormorant Garamond",Georgia,serif;color:#f6eede;-webkit-tap-highlight-color:transparent}
+
+  /* the stage keeps the painting's 3:2 and covers the viewport, so every
+     layer and canvas shares one coordinate system */
+  #viewport{position:fixed;inset:0;overflow:hidden;perspective:1000px}
+  #stage{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+  #stage > .set{position:absolute;inset:0}
+  .set > *{position:absolute;inset:0;width:100%;height:100%;will-change:transform}
+  .set img{object-fit:fill;user-select:none;-webkit-user-drag:none}
+
+  /* day sits under night; we cross-fade the whole set */
+  .set{transition:opacity 1.2s ease}
+  .set.hidden{opacity:0}
+
+  /* --------- caption --------- */
+  #caption{
+    position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 26px);
+    text-align:center;pointer-events:none;z-index:6;
+    text-shadow:0 2px 18px rgba(0,0,0,.75);
+  }
+  #caption .script{font-family:"Pinyon Script",cursive;font-size:clamp(26px,4.4vw,44px);line-height:1.5}
+  /* daylight is too bright for cream text, so the type flips to ink */
+  body.day #caption,
+  body.day #hint{color:#33200f;text-shadow:0 1px 14px rgba(255,255,255,.7)}
+  body.day #hint{opacity:.55}
+  body.day #caption .sub{opacity:.85}
+  body.day #toggle{
+    background:rgba(255,252,244,.5);border-color:rgba(51,32,15,.28);color:#33200f;
+  }
+  body.day #toggle:hover{background:rgba(255,252,244,.8);border-color:rgba(160,110,40,.75)}
+  body.day #vignette{background:radial-gradient(ellipse at 50% 46%,transparent 44%,rgba(60,50,25,.22) 100%)}
+  #caption .sub{
+    font-size:clamp(10px,1.5vw,12px);letter-spacing:.34em;text-transform:uppercase;
+    opacity:.62;margin-top:10px;
+  }
+
+  /* --------- controls --------- */
+  #toggle{
+    position:fixed;top:calc(env(safe-area-inset-top) + 18px);right:18px;z-index:7;
+    appearance:none;border:1px solid rgba(246,238,222,.34);border-radius:999px;
+    background:rgba(13,21,38,.36);backdrop-filter:blur(7px);
+    color:#f6eede;font-family:inherit;font-size:11px;letter-spacing:.24em;
+    text-transform:uppercase;padding:9px 17px;cursor:pointer;
+    transition:background .3s ease,border-color .3s ease;
+  }
+  #toggle:hover{background:rgba(13,21,38,.62);border-color:rgba(217,178,95,.7)}
+
+  #hint{
+    position:fixed;top:calc(env(safe-area-inset-top) + 20px);left:20px;z-index:7;
+    font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;opacity:.4;
+    text-shadow:0 2px 12px rgba(0,0,0,.8);transition:opacity .8s ease;
+  }
+  #hint.gone{opacity:0}
+
+  /* vignette keeps the eye in the middle and hides any layer edge */
+  #vignette{
+    position:fixed;inset:0;z-index:5;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 46%,transparent 40%,rgba(8,12,22,.34) 100%);
+  }
+
+  @media (prefers-reduced-motion:reduce){ .set > *{transition:none} }
+</style>
+</head>
+<body>
+
+<div id="viewport">
+  <div id="stage">
+    <!-- night -->
+    <div class="set" id="setNight">
+      <img class="lyr" data-depth="0.10" src="scene/venue-night-base.webp" alt="">
+      <canvas class="sky" data-depth="0.14"></canvas>
+      <img class="lyr" data-depth="0.34" src="scene/venue-night-far.webp" alt="">
+      <img class="lyr" data-depth="0.62" src="scene/venue-night-mid.webp" alt="">
+      <canvas class="lights" data-depth="0.72"></canvas>
+      <img class="lyr" data-depth="1.00" src="scene/venue-night-near.webp" alt="">
+    </div>
+    <!-- day -->
+    <div class="set hidden" id="setDay">
+      <img class="lyr" data-depth="0.10" data-src="scene/venue-day-base.webp" alt="">
+      <canvas class="sky" data-depth="0.14"></canvas>
+      <img class="lyr" data-depth="0.34" data-src="scene/venue-day-far.webp" alt="">
+      <img class="lyr" data-depth="0.62" data-src="scene/venue-day-mid.webp" alt="">
+      <canvas class="lights" data-depth="0.72"></canvas>
+      <img class="lyr" data-depth="1.00" data-src="scene/venue-day-near.webp" alt="">
+    </div>
+  </div>
+</div>
+
+<div id="vignette"></div>
+<div id="hint">move to look around</div>
+<button id="toggle">see it by day</button>
+<div id="caption">
+  <div class="script">deep in the woods</div>
+  <div class="sub">Anisha &amp; Matt &middot; August 5&ndash;7 &middot; 2027</div>
+</div>
+
+<script>
+'use strict';
+const AR = 1536 / 1024;
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const viewport = document.getElementById('viewport');
+const stage    = document.getElementById('stage');
+const setNight = document.getElementById('setNight');
+const setDay   = document.getElementById('setDay');
+const hint     = document.getElementById('hint');
+
+let W = 0, H = 0;          /* stage size in CSS px */
+let night = true;
+
+/* ------------------------------------------------------------------ layout
+   Cover the viewport with a 3:2 stage, then over-size it by the parallax
+   headroom so sliding a layer never walks the painting off the screen. */
+const HEADROOM = 1.10;
+
+function layout(){
+  const vw = viewport.clientWidth, vh = viewport.clientHeight;
+  W = vw; H = W / AR;
+  if (H < vh){ H = vh; W = H * AR; }
+  W *= HEADROOM; H *= HEADROOM;
+  stage.style.width = W + 'px';
+  stage.style.height = H + 'px';
+  for (const c of document.querySelectorAll('canvas')) sizeCanvas(c);
+}
+
+function sizeCanvas(c){
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  c.width = Math.round(W * dpr);
+  c.height = Math.round(H * dpr);
+  c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+/* ------------------------------------------------------------------ camera
+   Pointer (or touch, or a slow idle drift) drives a target; the rendered
+   camera eases toward it so nothing snaps. */
+const cam = { x:0, y:0, tx:0, ty:0 };
+const AMP_X = 0.034, AMP_Y = 0.022;   /* fraction of stage size; stays inside the 48px inpainted bleed */
+
+function look(px, py){                 /* px,py in -1..1 */
+  cam.tx = Math.max(-1, Math.min(1, px));
+  cam.ty = Math.max(-1, Math.min(1, py));
+  hint.classList.add('gone');
+}
+addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch') return;
+  look((e.clientX / innerWidth) * 2 - 1, (e.clientY / innerHeight) * 2 - 1);
+});
+addEventListener('touchmove', e => {
+  const t = e.touches[0];
+  look((t.clientX / innerWidth) * 2 - 1, (t.clientY / innerHeight) * 2 - 1);
+}, {passive:true});
+addEventListener('deviceorientation', e => {
+  if (e.gamma == null) return;
+  look(e.gamma / 34, (e.beta - 45) / 34);
+});
+
+function camera(t){
+  /* idle drift so the scene breathes even when nobody is touching it */
+  const dx = Math.sin(t * 0.00019) * 0.42 + Math.sin(t * 0.00043) * 0.16;
+  const dy = Math.cos(t * 0.00025) * 0.30;
+  cam.x += ((cam.tx + dx) * 0.5 - cam.x) * 0.045;
+  cam.y += ((cam.ty + dy) * 0.5 - cam.y) * 0.045;
+
+  for (const el of stage.querySelectorAll('[data-depth]')){
+    const d = parseFloat(el.dataset.depth);
+    const x = -cam.x * W * AMP_X * d;
+    const y = -cam.y * H * AMP_Y * d;
+    el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
+  }
+}
+
+/* ------------------------------------------------------------------ sky
+   Night: the painted swirls get a slow twinkle, plus the odd shooting star.
+   Day:  soft wisps drift across the swirled clouds. Both are drawn over the
+   base plate but under the treeline, so the trees mask them for free. */
+const rnd = (a,b) => a + Math.random() * (b - a);
+
+const stars = Array.from({length: 90}, () => ({
+  x: Math.random(), y: rnd(0.02, 0.46),
+  r: rnd(0.8, 2.6), ph: Math.random() * 6.28, sp: rnd(0.0006, 0.0018)
+}));
+/* the six painted swirl-suns, hand-placed to glow in time with the rest */
+const suns = [[0.47,0.095],[0.62,0.085],[0.695,0.03],[0.445,0.285],[0.375,0.37],[0.60,0.20]]
+  .map(([x,y]) => ({x, y, ph: Math.random()*6.28, sp: rnd(0.0004,0.0009)}));
+
+const clouds = Array.from({length: 11}, () => ({
+  x: Math.random(), y: rnd(0.04, 0.38),
+  w: rnd(0.10, 0.30), h: rnd(0.020, 0.055),
+  a: rnd(0.05, 0.14), sp: rnd(0.000004, 0.000013)
+}));
+
+let shoot = null, nextShoot = 2600;
+
+function drawSky(ctx, t, isNight){
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+
+  if (isNight){
+    for (const s of stars){
+      const a = 0.16 + 0.34 * (0.5 + 0.5 * Math.sin(t * s.sp + s.ph));
+      const r = s.r * (H / 1024) * 1.6;
+      const g = ctx.createRadialGradient(s.x*W, s.y*H, 0, s.x*W, s.y*H, r*4);
+      g.addColorStop(0, `rgba(255,246,214,${a})`);
+      g.addColorStop(1, 'rgba(255,246,214,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(s.x*W, s.y*H, r*4, 0, 6.2832); ctx.fill();
+    }
+    for (const s of suns){
+      const a = 0.10 + 0.16 * (0.5 + 0.5 * Math.sin(t * s.sp + s.ph));
+      const r = H * 0.075;
+      const g = ctx.createRadialGradient(s.x*W, s.y*H, 0, s.x*W, s.y*H, r);
+      g.addColorStop(0, `rgba(255,228,138,${a})`);
+      g.addColorStop(1, 'rgba(255,228,138,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(s.x*W, s.y*H, r, 0, 6.2832); ctx.fill();
+    }
+    if (shoot){
+      shoot.p += 0.014;
+      if (shoot.p >= 1){ shoot = null; }
+      else {
+        const e = Math.sin(Math.PI * shoot.p);          /* fade in and out */
+        const x = (shoot.x + shoot.dx * shoot.p) * W;
+        const y = (shoot.y + shoot.dy * shoot.p) * H;
+        const tx = x - shoot.dx * W * 0.16, ty = y - shoot.dy * H * 0.16;
+        const g = ctx.createLinearGradient(x, y, tx, ty);
+        g.addColorStop(0, `rgba(255,250,226,${0.85*e})`);
+        g.addColorStop(1, 'rgba(255,250,226,0)');
+        ctx.strokeStyle = g; ctx.lineWidth = 2 * (H/1024) * 1.6; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty); ctx.stroke();
+      }
+    } else if (t > nextShoot){
+      shoot = { p:0, x: rnd(0.15,0.75), y: rnd(0.02,0.22), dx: rnd(0.14,0.30), dy: rnd(0.05,0.13) };
+      nextShoot = t + rnd(7000, 15000);
+    }
+  } else {
+    ctx.globalCompositeOperation = 'soft-light';
+    for (const c of clouds){
+      c.x += c.sp * 16;
+      if (c.x - c.w > 1.25) c.x = -c.w - 0.25;
+      const g = ctx.createRadialGradient(c.x*W, c.y*H, 0, c.x*W, c.y*H, c.w*W);
+      const a = c.a * (0.7 + 0.3 * Math.sin(t * 0.0002 + c.y * 20));
+      g.addColorStop(0, `rgba(255,255,248,${a})`);
+      g.addColorStop(1, 'rgba(255,255,248,0)');
+      ctx.save();
+      ctx.translate(c.x*W, c.y*H); ctx.scale(1, c.h / c.w); ctx.translate(-c.x*W, -c.y*H);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(c.x*W, c.y*H, c.w*W, 0, 6.2832); ctx.fill();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+
+/* ------------------------------------------------------------------ lights
+   Catenary strands slung across the arches, swaying on two slow sines with
+   the bulbs riding the curve and twinkling out of phase. */
+const STRANDS = [
+  { a:[0.155,0.678], b:[0.455,0.700], sag:0.050, n:26, ph:0.0 },
+  { a:[0.430,0.694], b:[0.705,0.662], sag:0.055, n:24, ph:1.7 },
+  { a:[0.200,0.638], b:[0.720,0.628], sag:0.072, n:38, ph:3.1 },
+  { a:[0.625,0.652], b:[0.870,0.618], sag:0.042, n:20, ph:4.6 },
+];
+for (const s of STRANDS) s.bulbs = Array.from({length:s.n}, () => Math.random()*6.28);
+
+function strandPoint(s, u, t){
+  /* quadratic bezier with an animated control point == sway */
+  const sway = Math.sin(t * 0.00055 + s.ph) * 0.010 + Math.sin(t * 0.00097 + s.ph*1.7) * 0.004;
+  const cx = (s.a[0] + s.b[0]) / 2 + sway;
+  const cy = (s.a[1] + s.b[1]) / 2 + s.sag + Math.sin(t * 0.00041 + s.ph) * 0.006;
+  const m = 1 - u;
+  return [
+    m*m*s.a[0] + 2*m*u*cx + u*u*s.b[0],
+    m*m*s.a[1] + 2*m*u*cy + u*u*s.b[1],
+  ];
+}
+
+function drawLights(ctx, t, isNight){
+  ctx.clearRect(0, 0, W, H);
+  const scale = H / 1024;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const s of STRANDS){
+    /* the wire */
+    ctx.beginPath();
+    for (let i = 0; i <= 40; i++){
+      const [x, y] = strandPoint(s, i/40, t);
+      i ? ctx.lineTo(x*W, y*H) : ctx.moveTo(x*W, y*H);
+    }
+    ctx.strokeStyle = isNight ? 'rgba(90,74,44,.5)' : 'rgba(70,60,40,.34)';
+    ctx.lineWidth = Math.max(1, 1.3 * scale);
+    ctx.stroke();
+
+    /* the bulbs */
+    for (let i = 0; i < s.n; i++){
+      const [x, y] = strandPoint(s, (i + 0.5) / s.n, t);
+      const tw = 0.62 + 0.38 * Math.sin(t * 0.0021 + s.bulbs[i]);
+      const a  = (isNight ? 0.95 : 0.55) * tw;
+      const r  = (isNight ? 9 : 6.5) * scale;
+      const g = ctx.createRadialGradient(x*W, y*H, 0, x*W, y*H, r);
+      g.addColorStop(0,   `rgba(255,244,205,${a})`);
+      g.addColorStop(0.28, `rgba(255,205,110,${a*0.55})`);
+      g.addColorStop(1,   'rgba(255,190,90,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x*W, y*H, r, 0, 6.2832); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/* ------------------------------------------------------------------ loop */
+const ctxOf = new WeakMap();
+function ctx2d(c){
+  let c2 = ctxOf.get(c);
+  if (!c2){ c2 = c.getContext('2d'); ctxOf.set(c, c2); }
+  return c2;
+}
+
+let lastW = 0, lastH = 0;
+function frame(t){
+  if (viewport.clientWidth !== lastW || viewport.clientHeight !== lastH){
+    lastW = viewport.clientWidth; lastH = viewport.clientHeight;
+    layout();
+  }
+  const at = REDUCED ? 0 : t;          /* one frozen frame if motion is unwelcome */
+  camera(at);
+  const set = night ? setNight : setDay;
+  drawSky(ctx2d(set.querySelector('.sky')), at, night);
+  drawLights(ctx2d(set.querySelector('.lights')), at, night);
+  requestAnimationFrame(frame);
+}
+
+/* ------------------------------------------------------------------ toggle
+   #day in the URL opens straight into daylight (handy for screenshots). */
+const toggle = document.getElementById('toggle');
+
+function setNightMode(on){
+  /* the other half of the artwork only downloads when it is first asked for */
+  for (const img of setDay.querySelectorAll('img[data-src]')){
+    img.src = img.dataset.src; img.removeAttribute('data-src');
+  }
+  night = on;
+  setNight.classList.toggle('hidden', !night);
+  setDay.classList.toggle('hidden', night);
+  toggle.textContent = night ? 'see it by day' : 'see it by night';
+  document.querySelector('#caption .script').textContent =
+    night ? 'deep in the woods' : 'under the arches';
+  document.querySelector('meta[name=theme-color]').content = night ? '#16223c' : '#cfe0ea';
+  document.body.classList.toggle('day', !night);
+}
+toggle.addEventListener('click', () => setNightMode(!night));
+if (location.hash === '#day') setNightMode(false);
+
+if (matchMedia('(hover: none)').matches) hint.textContent = 'drag to look around';
+
+addEventListener('resize', layout);
+layout();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
