@@ -69,7 +69,7 @@ class Sky {
   }
 
   draw(ctx, t, e){
-    const dark = 1 - e.day;
+    const dark = 1 - e.sky;
     if (dark > 0.01){
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
@@ -84,13 +84,13 @@ class Sky {
       this.shootingStar(ctx, t, e, dark);
       ctx.restore();
     }
-    if (e.day > 0.01){
+    if (e.sky > 0.01){
       ctx.save();
       ctx.globalCompositeOperation = 'soft-light';
       for (const c of this.clouds){
         c.x += c.sp * 16;
         if (c.x - c.w > 1.25) c.x = -c.w - 0.25;
-        const a = c.a * (0.7 + 0.3 * Math.sin(t * 0.0002 + c.y * 20)) * e.day;
+        const a = c.a * (0.7 + 0.3 * Math.sin(t * 0.0002 + c.y * 20)) * e.sky;
         ctx.save();
         ctx.translate(c.x * e.W, c.y * e.H);
         ctx.scale(1, c.h / c.w);
@@ -148,10 +148,11 @@ class Lights {
   }
 
   draw(ctx, t, e){
-    const wireA = mix(0.5, 0.34, e.day);
-    const bulbA = mix(0.95, 0.55, e.day);
-    const bulbR = mix(9, 6.5, e.day) * e.k;
-    const wire  = rgb([90,74,44], [70,60,40], e.day);
+    const lit   = e.ground;          /* the lights answer to the ground */
+    const wireA = mix(0.5, 0.34, lit);
+    const bulbA = mix(0.95, 0.55, lit);
+    const bulbR = mix(9, 6.5, lit) * e.k;
+    const wire  = rgb([90,74,44], [70,60,40], lit);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (const s of this.strands){
@@ -191,8 +192,8 @@ class Fog {
   }
 
   draw(ctx, t, e){
-    const base = this.density * mix(0.10, 0.06, e.day);
-    const tint = rgb([176,196,224], [255,255,246], e.day);
+    const base = this.density * mix(0.10, 0.06, e.ground);
+    const tint = rgb([176,196,224], [255,255,246], e.ground);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (const b of this.bands){
@@ -225,8 +226,8 @@ class Swarm {
   }
 
   draw(ctx, t, e){
-    const peak = mix(0.95, 0.34, e.day);
-    const tint = rgb([198,255,150], [255,248,214], e.day);
+    const peak = mix(0.95, 0.34, e.ground);
+    const tint = rgb([198,255,150], [255,248,214], e.ground);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (const b of this.bugs){
@@ -268,7 +269,7 @@ class Drifters {
       d.x += d.vx * 16;
       if (d.ember && d.y < 0.26) Object.assign(d, this.spawn(rnd(0.72, 0.95), true));
       if (!d.ember && d.y > 1.04) Object.assign(d, this.spawn(rnd(-0.06, 0.05), false));
-      const weight = d.ember ? 1 - e.day : e.day;
+      const weight = d.ember ? 1 - e.ground : e.ground;
       if (weight < 0.02) continue;
       const x = (d.x + d.sway * Math.sin(t * d.f + d.ph)) * e.W;
       const y = d.y * e.H;
@@ -332,6 +333,7 @@ export class Diorama {
       tourDolly: 0.022,
       tourLeg: 4600, tourHold: 1100,
       day: 0,                /* where the light starts: 0 night .. 1 noon */
+      stagger: 0,            /* how far the ground lags the sky as light changes */
     }, cfg);
 
     this.day = this.dayTarget = this.cfg.day;
@@ -365,7 +367,7 @@ export class Diorama {
         day.dataset.src = `${this.cfg.art}venue-day-${L.key}.webp`;
         night.alt = day.alt = '';
         node.append(night, day);
-        this.pairs.push({ night, day });
+        this.pairs.push({ night, day, depth: L.depth });
       } else {
         node = el('canvas');
       }
@@ -484,19 +486,29 @@ export class Diorama {
     }
   }
 
+  /* Light does not arrive everywhere at once: dusk comes down out of the sky,
+     so the nearer a layer is, the later it turns. Each layer therefore gets
+     its own value derived from its depth. */
+  lightAt(depth){
+    const lag = this.cfg.stagger;
+    if (!lag) return this.day;
+    const dn = (depth - 0.10) / 0.90;             /* 0 at the sky, 1 at the near tree */
+    return Math.max(0, Math.min(1, (this.day - lag * dn) / (1 - lag)));
+  }
+
   /* Crossfade every depth layer in place, and drop whichever half is fully out
      so the compositor is not blending eight full-screen images for nothing. */
   paintLight(force){
     if (!force && Math.abs(this.day - this._painted) < 0.002) return;
     this._painted = this.day;
-    const d = this.day;
     for (const p of this.pairs){
+      const d = this.lightAt(p.depth);
       p.night.style.opacity = 1 - d;
       p.day.style.opacity = d;
       p.night.style.display = d > 0.998 ? 'none' : '';
       p.day.style.display = d < 0.002 ? 'none' : '';
     }
-    this.root.dispatchEvent(new CustomEvent('diorama:light', { detail: { day: d } }));
+    this.root.dispatchEvent(new CustomEvent('diorama:light', { detail: { day: this.day } }));
   }
 
   frame(t){
@@ -512,7 +524,8 @@ export class Diorama {
       this.paintLight();
     }
 
-    const env = { W: this.W, H: this.H, day: this.day, k: this.H / 1024 * 1.6 };
+    const env = { W: this.W, H: this.H, k: this.H / 1024 * 1.6,
+                  day: this.day, sky: this.lightAt(0.10), ground: this.lightAt(1.00) };
     const cleared = new Set();   /* a canvas shared by two systems clears once */
     for (const [key, sys] of this.systems){
       const canvas = this.nodes[key];
