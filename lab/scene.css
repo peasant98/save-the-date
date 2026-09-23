@@ -1,0 +1,67 @@
+/* Shared chrome for the diorama pages (/lab and /alive). */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#0d1526}
+body{
+  font-family:"Cormorant Garamond",Georgia,serif;color:#f6eede;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* the stage keeps the painting's 3:2 and covers the viewport, so every layer
+   and canvas shares one coordinate system */
+#viewport{position:fixed;inset:0;overflow:hidden}
+.stage{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.stage > .set{position:absolute;inset:0}
+.set > *{
+  position:absolute;inset:0;width:100%;height:100%;
+  will-change:transform;transform-origin:50% 100%;
+}
+.set img{object-fit:fill;user-select:none;-webkit-user-drag:none}
+.set{transition:opacity 1.2s ease}
+.set.hidden{opacity:0}
+
+/* --------- caption --------- */
+#caption{
+  position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 26px);
+  text-align:center;pointer-events:none;z-index:6;
+  text-shadow:0 2px 18px rgba(0,0,0,.75);
+}
+#caption .script{font-family:"Pinyon Script",cursive;font-size:clamp(26px,4.4vw,44px);line-height:1.5}
+#caption .sub{
+  font-size:clamp(10px,1.5vw,12px);letter-spacing:.34em;text-transform:uppercase;
+  opacity:.62;margin-top:10px;
+}
+
+/* --------- controls --------- */
+#toggle{
+  position:fixed;top:calc(env(safe-area-inset-top) + 18px);right:18px;z-index:7;
+  appearance:none;border:1px solid rgba(246,238,222,.34);border-radius:999px;
+  background:rgba(13,21,38,.36);backdrop-filter:blur(7px);
+  color:#f6eede;font-family:inherit;font-size:11px;letter-spacing:.24em;
+  text-transform:uppercase;padding:9px 17px;cursor:pointer;
+  transition:background .3s ease,border-color .3s ease;
+}
+#toggle:hover{background:rgba(13,21,38,.62);border-color:rgba(217,178,95,.7)}
+
+#hint{
+  position:fixed;top:calc(env(safe-area-inset-top) + 20px);left:20px;z-index:7;
+  font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;opacity:.4;
+  text-shadow:0 2px 12px rgba(0,0,0,.8);transition:opacity .8s ease;
+}
+#hint.gone{opacity:0}
+
+/* daylight is too bright for cream text, so the type flips to ink */
+body.day #caption,
+body.day #hint{color:#33200f;text-shadow:0 1px 14px rgba(255,255,255,.7)}
+body.day #hint{opacity:.55}
+body.day #caption .sub{opacity:.85}
+body.day #toggle{background:rgba(255,252,244,.5);border-color:rgba(51,32,15,.28);color:#33200f}
+body.day #toggle:hover{background:rgba(255,252,244,.8);border-color:rgba(160,110,40,.75)}
+
+/* vignette keeps the eye in the middle and hides any layer edge */
+#vignette{
+  position:fixed;inset:0;z-index:5;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 46%,transparent 40%,rgba(8,12,22,.34) 100%);
+}
+body.day #vignette{background:radial-gradient(ellipse at 50% 46%,transparent 44%,rgba(60,50,25,.22) 100%)}
+
+@media (prefers-reduced-motion:reduce){ .set > *{transition:none} }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Anisha &amp; Matt — the scene</title>
+<title>Anisha &amp; Matt — the scene, awake</title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#16223c">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,18 +18,25 @@
 <div id="hint">move to look around</div>
 <button id="toggle">see it by day</button>
 <div id="caption">
-  <div class="script">deep in the woods</div>
+  <div class="script">the woods, awake</div>
   <div class="sub">Anisha &amp; Matt &middot; August 5&ndash;7 &middot; 2027</div>
 </div>
 
 <script type="module">
 import { mount } from '/lab/page.js';
 
-/* the quiet one: depth, the sky and the string lights, nothing else */
+/* everything on: wind through the canopy, mist off the lawn, fireflies and
+   rising embers at night, dust and falling leaves by day, and a camera that
+   travels further and breathes in and out */
 mount({
-  amp: [0.034, 0.022],
-  drift: 1.0,
-  captions: { night: 'deep in the woods', day: 'under the arches' },
+  amp: [0.042, 0.027],
+  drift: 1.5,
+  breathe: 0.012,
+  wind: 0.42,
+  fog: 0.85,
+  swarm: 85,
+  drifters: 26,
+  captions: { night: 'the woods, awake', day: 'the lawn, awake' },
 });
 </script>
 </body>
