@@ -15,7 +15,6 @@
  */
 
 const AR = 1536 / 1024;
-const HEADROOM = 1.10;              /* over-size so parallax never walks off-screen */
 const rnd = (a, b) => a + Math.random() * (b - a);
 const TAU = Math.PI * 2;
 
@@ -306,6 +305,7 @@ export class Diorama {
     this.cfg = Object.assign({
       art: '/lab/scene/',
       amp: [0.034, 0.022],   /* camera travel, as a share of stage size */
+      headroom: 1.10,        /* over-size, so travel never walks off the frame edge */
       drift: 1.0,            /* idle wander */
       breathe: 0,            /* slow dolly in and out */
       wind: 0,               /* degrees of sway on the tree layers */
@@ -403,8 +403,8 @@ export class Diorama {
     const vw = this.root.clientWidth, vh = this.root.clientHeight;
     let W = vw, H = vw / AR;
     if (H < vh){ H = vh; W = H * AR; }
-    this.W = W * HEADROOM;
-    this.H = H * HEADROOM;
+    this.W = W * this.cfg.headroom;
+    this.H = H * this.cfg.headroom;
     this.stage.style.width = this.W + 'px';
     this.stage.style.height = this.H + 'px';
     const dpr = Math.min(devicePixelRatio || 1, 2);

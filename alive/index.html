@@ -29,7 +29,8 @@ import { mount } from '/lab/page.js';
    rising embers at night, dust and falling leaves by day, and a camera that
    tours the scene on its own until you take it */
 mount({
-  amp: [0.042, 0.027],
+  amp: [0.055, 0.034],
+  headroom: 1.17,
   hint: { pointer: 'move to take the camera', touch: 'drag to take the camera' },
   /* [x, y, dolly] — hard left and right is where the parallax lives */
   tour: [
@@ -41,7 +42,7 @@ mount({
     [ 0.45, -0.55, -0.35],
     [-0.20,  0.10, -0.15],
   ],
-  tourDolly: 0.022,
+  tourDolly: 0.028,
   wind: 0.42,
   fog: 0.85,
   swarm: 85,
