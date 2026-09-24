@@ -325,6 +325,7 @@ export class Diorama {
       art: '/lab/scene/',
       amp: [0.034, 0.022],   /* camera travel, as a share of stage size */
       headroom: 1.10,        /* over-size, so travel never walks off the frame edge */
+      fit: 'cover',          /* 'contain': whole painting in a frame on landscape screens */
       drift: 1.0,            /* idle wander */
       breathe: 0,            /* slow dolly in and out */
       wind: 0,               /* degrees of sway on the tree layers */
@@ -336,7 +337,8 @@ export class Diorama {
       stagger: 0,            /* how far the ground lags the sky as light changes */
     }, cfg);
 
-    this.day = this.dayTarget = this.cfg.day;
+    this.day = this.dayTarget = this.goal = this.cfg.day;
+    this.tween = null;
     this.dayEase = 0.04;
     this.W = this.H = 0;
     this.cam = { x: 0, y: 0, tx: 0, ty: 0 };
@@ -377,7 +379,22 @@ export class Diorama {
       this.stage.appendChild(node);
       this.nodes[L.key] = node;
     }
-    this.root.appendChild(this.stage);
+    if (this.cfg.fit === 'contain'){
+      /* the painting sits whole in a frame; the space around it is a blurred
+         copy of the base layer, which follows the light like any other pair */
+      const back = el('div', 'backdrop');
+      const night = el('img'), day = el('img');
+      night.src = `${this.cfg.art}venue-night-base.webp`;
+      day.dataset.src = `${this.cfg.art}venue-day-base.webp`;
+      night.alt = day.alt = '';
+      back.append(night, day);
+      this.pairs.push({ night, day, depth: 0.10 });
+      this.frameEl = el('div', 'frame');
+      this.frameEl.appendChild(this.stage);
+      this.root.append(back, this.frameEl);
+    } else {
+      this.root.appendChild(this.stage);
+    }
 
     const c = this.cfg;
     this.systems = [
@@ -432,7 +449,15 @@ export class Diorama {
   layout(){
     const vw = this.root.clientWidth, vh = this.root.clientHeight;
     let W = vw, H = vw / AR;
-    if (H < vh){ H = vh; W = H * AR; }
+    /* contain only on landscape screens; a portrait phone keeps the cover
+       crop and is explored by dragging */
+    const contain = this.cfg.fit === 'contain' && vw >= vh;
+    if (contain ? H > vh : H < vh){ H = vh; W = H * AR; }
+    if (this.frameEl){
+      this.frameEl.style.width = (contain ? W : vw) + 'px';
+      this.frameEl.style.height = (contain ? H : vh) + 'px';
+      this.frameEl.classList.toggle('framed', contain);
+    }
     this.W = W * this.cfg.headroom;
     this.H = H * this.cfg.headroom;
     this.stage.style.width = this.W + 'px';
@@ -519,7 +544,12 @@ export class Diorama {
     const at = this.reduced ? 0 : t;
     this.camera(at);
 
-    if (Math.abs(this.dayTarget - this.day) > 0.0005){
+    if (this.tween){
+      const w = this.tween, u = Math.min(1, (performance.now() - w.t0) / w.ms);
+      this.day = w.from + (w.to - w.from) * u * u * u * (u * (u * 6 - 15) + 10);
+      this.paintLight();
+      if (u >= 1) this.tween = null;
+    } else if (Math.abs(this.dayTarget - this.day) > 0.0005){
       this.day += (this.dayTarget - this.day) * this.dayEase;
       this.paintLight();
     }
@@ -540,8 +570,23 @@ export class Diorama {
      its time about it. */
   setLight(v, ease = 0.04){
     if (v > 0.002) this.loadDay();
-    this.dayTarget = Math.max(0, Math.min(1, v));
+    this.tween = null;
+    this.goal = this.dayTarget = Math.max(0, Math.min(1, v));
     this.dayEase = ease;
+  }
+
+  /* A switch: one timed, eased fade instead of chasing a target. It waits for
+     the daylight images to decode, so the first switch never fades into a
+     half-loaded painting. */
+  fadeLight(v, ms = 3000){
+    this.loadDay();
+    const goal = this.goal = Math.max(0, Math.min(1, v));
+    const ready = this.pairs.map(p => p.day.decode ? p.day.decode().catch(() => {}) : null);
+    Promise.all(ready).then(() => {
+      if (this.goal !== goal) return;              /* switched again while loading */
+      this.tween = { from: this.day, to: goal, t0: performance.now(), ms };
+      this.dayTarget = goal;
+    });
   }
 }
 

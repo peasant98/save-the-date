@@ -41,7 +41,7 @@ export function mount(cfg){
     slider.addEventListener('input', () => scene.setLight(+slider.value, 0.35));
   }
   if (toggle){
-    toggle.addEventListener('click', () => scene.setLight(scene.dayTarget > 0.5 ? 0 : 1, 0.04));
+    toggle.addEventListener('click', () => scene.fadeLight(scene.goal > 0.5 ? 0 : 1));
   }
 
   const touch = matchMedia('(hover: none)').matches;

@@ -16,11 +16,7 @@
 <div id="viewport"></div>
 <div id="vignette"></div>
 <div id="hint">move to look around</div>
-<div id="timeline">
-  <span>night</span>
-  <input id="time" type="range" min="0" max="1" step="0.002" value="0" aria-label="Time of day">
-  <span>day</span>
-</div>
+<button id="toggle">see it by day</button>
 <div id="caption">
   <div class="script">the woods, awake</div>
   <div class="sub">Anisha &amp; Matt &middot; August 5&ndash;7 &middot; 2027</div>
@@ -33,8 +29,9 @@ import { mount } from '/lab/page.js';
    rising embers at night, dust and falling leaves by day, and a camera that
    tours the scene on its own until you take it */
 mount({
-  amp: [0.055, 0.034],
-  headroom: 1.17,
+  fit: 'contain',
+  amp: [0.025, 0.016],
+  headroom: 1.06,
   hint: { pointer: 'move to take the camera', touch: 'drag to take the camera' },
   /* [x, y, dolly] — hard left and right is where the parallax lives */
   tour: [
@@ -46,7 +43,7 @@ mount({
     [ 0.45, -0.55, -0.35],
     [-0.20,  0.10, -0.15],
   ],
-  tourDolly: 0.028,
+  tourDolly: 0.015,
   wind: 0.42,
   fog: 0.85,
   swarm: 85,
