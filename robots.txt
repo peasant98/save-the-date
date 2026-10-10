@@ -2,3 +2,4 @@ User-agent: *
 Disallow: /lab/
 Disallow: /alive/
 Disallow: /day1/
+Disallow: /montage/
