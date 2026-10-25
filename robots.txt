@@ -4,3 +4,4 @@ Disallow: /alive/
 Disallow: /day1/
 Disallow: /montage/
 Disallow: /real2sem2real/
+Disallow: /wedding/
